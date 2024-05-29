@@ -9,25 +9,32 @@ from sqlalchemy.future import select
 
 router = APIRouter()
 
+
 @router.post(
-    '/', 
+    '/',
     summary='Criar um novo Centro de treinamento',
     status_code=status.HTTP_201_CREATED,
     response_model=CentroTreinamentoOut,
 )
 async def post(
-    db_session: DatabaseDependency, 
-    centro_treinamento_in: CentroTreinamentoIn = Body(...)
+        db_session: DatabaseDependency,
+        centro_treinamento_in: CentroTreinamentoIn = Body(...)
 ) -> CentroTreinamentoOut:
-    centro_treinamento_out = CentroTreinamentoOut(id=uuid4(), **centro_treinamento_in.model_dump())
-    centro_treinamento_model = CentroTreinamentoModel(**centro_treinamento_out.model_dump())
-    
-    db_session.add(centro_treinamento_model)
-    await db_session.commit()
+    try:
+        centro_treinamento_out = CentroTreinamentoOut(id=uuid4(), **centro_treinamento_in.model_dump())
+        centro_treinamento_model = CentroTreinamentoModel(**centro_treinamento_out.model_dump())
 
+        db_session.add(centro_treinamento_model)
+        await db_session.commit()
+    except IntegrityError:
+        await db_session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_303_SEE_OTHER,
+            detail=f'Já existe um centro de treinamento cadastrado com o nome: {centro_treinamento_in.nome}'
+        )
     return centro_treinamento_out
-    
-    
+
+
 @router.get(
     '/', 
     summary='Consultar todos os centros de treinamento',

@@ -9,25 +9,32 @@ from sqlalchemy.future import select
 
 router = APIRouter()
 
+
 @router.post(
-    '/', 
+    '/',
     summary='Criar uma nova Categoria',
     status_code=status.HTTP_201_CREATED,
     response_model=CategoriaOut,
 )
 async def post(
-    db_session: DatabaseDependency, 
-    categoria_in: CategoriaIn = Body(...)
+        db_session: DatabaseDependency,
+        categoria_in: CategoriaIn = Body(...)
 ) -> CategoriaOut:
-    categoria_out = CategoriaOut(id=uuid4(), **categoria_in.model_dump())
-    categoria_model = CategoriaModel(**categoria_out.model_dump())
-    
-    db_session.add(categoria_model)
-    await db_session.commit()
+    try:
+        categoria_out = CategoriaOut(id=uuid4(), **categoria_in.model_dump())
+        categoria_model = CategoriaModel(**categoria_out.model_dump())
 
+        db_session.add(categoria_model)
+        await db_session.commit()
+    except IntegrityError:
+        await db_session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_303_SEE_OTHER,
+            detail=f'Já existe uma categoria cadastrada com o nome: {categoria_in.nome}'
+        )
     return categoria_out
-    
-    
+
+
 @router.get(
     '/', 
     summary='Consultar todas as Categorias',
